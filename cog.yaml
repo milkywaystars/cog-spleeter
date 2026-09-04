@@ -1,22 +1,26 @@
-# Configuration for Cog ⚙️
-# Reference: https://github.com/replicate/cog/blob/main/docs/yaml.md
+# Configuration for Cog
 
 build:
-  # set to true if your model requires a GPU
   gpu: true
 
-  # a list of ubuntu apt packages to install
   system_packages:
     - "ffmpeg"
 
-  # python version in the form '3.8' or '3.8.12'
   python_version: "3.10"
 
-  # a list of packages in the format <package-name>==<version>
+  # Spleeter 2.4 uses an older TensorFlow/Typer dependency stack.
+  # Pin the complete stack so future builds remain reproducible.
   python_packages:
-    # TensorFlow used by Spleeter 2.4 requires NumPy 1.x.
     - "numpy==1.23.5"
+    - "protobuf==3.19.6"
+    - "click==7.1.2"
+    - "typer==0.3.2"
+    - "tensorflow==2.9.3"
+    - "pandas==1.5.3"
     - "spleeter==2.4.0"
 
-# predict.py defines how predictions are run on your model
+  # Fail the GitHub build immediately if Spleeter cannot be imported.
+  run:
+    - 'python -c "from spleeter.audio.adapter import AudioAdapter; from spleeter.separator import Separator; print(\"Spleeter imports OK\")"'
+
 predict: "predict.py:Predictor"
