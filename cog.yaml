@@ -21,7 +21,12 @@ build:
     - "spleeter==2.4.0"
 
   # Fail the GitHub build immediately if Spleeter cannot be imported.
+  # Force the old Click/Typer pair into the final image because Cog's
+  # dependency staging can otherwise retain its newer Click installation.
   run:
-    - 'python -c "from spleeter.audio.adapter import AudioAdapter; from spleeter.separator import Separator; print(\"Spleeter imports OK\")"'
+    - 'python -m pip install --no-cache-dir --force-reinstall "click==7.1.2" "typer==0.3.2"'
 
+    # Stop the build here if Spleeter still cannot be imported.
+    - 'python -c "from spleeter.audio.adapter import AudioAdapter; from spleeter.separator import Separator"'
+    
 predict: "predict.py:Predictor"
