@@ -1,38 +1,63 @@
+import subprocess
 import tempfile
-from spleeter.separator import Separator
+
+from cog import BaseModel, BasePredictor, Input, Path
 from spleeter.audio.adapter import AudioAdapter
-from cog import BasePredictor, Input, Path, BaseModel
+from spleeter.separator import Separator
 
 
 class ModelOutput(BaseModel):
+    # Only return the compressed vocals file. The Cloudflare pipeline does not
+    # need Replicate to upload and retain the accompaniment stem.
     vocals: Path
-    accompaniment: Path
 
 
 class Predictor(BasePredictor):
-
     def setup(self):
-        """Loads Spleeter 2 stems model into memory from disk"""
-        self.separator = Separator('spleeter:2stems')
+        """Load the Spleeter two-stem model once when the container starts."""
+        self.separator = Separator("spleeter:2stems")
         self.audio_loader = AudioAdapter.default()
 
     def predict(
-            self,
-            audio: Path = Input(description="Audio file")
+        self,
+        audio: Path = Input(description="MP4, MP3, M4A or other FFmpeg-readable media"),
     ) -> ModelOutput:
-        """Separate the vocals from the accompaniment of an audio file"""
+        """Separate vocals and return mono 16 kHz, 128 kbps MP3 audio."""
+
+        # The existing model loads the complete source before separation.
         waveform, sample_rate = self.audio_loader.load(str(audio))
         prediction = self.separator.separate(waveform)
 
-        out_path = Path(tempfile.mkdtemp())
+        output_directory = Path(tempfile.mkdtemp())
+        vocals_wav = output_directory / "vocals.wav"
+        vocals_mp3 = output_directory / "vocals.mp3"
 
-        out_path_vocals = out_path / "vocals.wav"
-        out_path_accompaniment = out_path / "accompaniment.wav"
-
-        self.audio_loader.save(str(out_path_vocals), prediction['vocals'], sample_rate)
-        self.audio_loader.save(str(out_path_accompaniment), prediction['accompaniment'], sample_rate)
-
-        return ModelOutput(
-            vocals=out_path_vocals,
-            accompaniment=out_path_accompaniment
+        # Spleeter generates the vocals stem as uncompressed WAV first.
+        self.audio_loader.save(
+            str(vocals_wav),
+            prediction["vocals"],
+            sample_rate,
         )
+
+        # Compress it before Replicate uploads the result.
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(vocals_wav),
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                str(vocals_mp3),
+            ],
+            check=True,
+        )
+
+        return ModelOutput(vocals=vocals_mp3)
