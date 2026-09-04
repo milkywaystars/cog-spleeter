@@ -18,6 +18,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      # Download and unpack the Spleeter two-stem weights before Cog builds
+      # the image. This ensures setup does not download them at runtime.
+      - name: Download Spleeter model weights
+        run: bash download_model.sh
+
       - name: Set up Cog
         uses: replicate/setup-cog@v2
         with:
