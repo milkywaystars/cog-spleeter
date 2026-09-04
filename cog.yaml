@@ -2,6 +2,7 @@
 
 build:
   gpu: true
+  cuda: "11.2"
 
   system_packages:
     - "ffmpeg"
