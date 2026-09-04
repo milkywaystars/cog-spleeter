@@ -14,6 +14,8 @@ build:
 
   # a list of packages in the format <package-name>==<version>
   python_packages:
+    # TensorFlow used by Spleeter 2.4 requires NumPy 1.x.
+    - "numpy==1.23.5"
     - "spleeter==2.4.0"
 
 # predict.py defines how predictions are run on your model
